@@ -59,6 +59,33 @@ make dmg     # 生成安装镜像到 ~/Downloads
 
 `make app` 会在打包前运行自检，**失败则拒绝打包**，因此 `dist/` 里不会出现半成品。安装即把 `dist/BatteryScope.app` 拖入 `/Applications`。
 
+## 下载与首次打开
+
+从 [Releases](../../releases) 下载 `BatteryScope-<版本>.dmg`。
+
+**要求**：macOS 14.0 或更高、**Apple Silicon（arm64）**。本项目只构建 arm64，Intel Mac 无法运行。
+
+### ⚠️ 关于签名
+
+应用是 **ad-hoc 签名**：`Signature=adhoc`、`TeamIdentifier=not set`，**没有 Developer ID 证书，也没有经过 Apple 公证**。DMG 本身同样未签名（`source=no usable signature`）。
+
+这意味着在**默认安全设置**的 Mac 上，Gatekeeper 会拦截它——你会看到「无法打开，因为 Apple 无法检查其是否包含恶意软件」。这是签名状态的必然结果，不是文件损坏。
+
+首次打开有三种方式，任选其一：
+
+1. **右键点击 App → 打开**，在随后的对话框里再点一次「打开」。只需做一次。
+2. **系统设置 → 隐私与安全性**，在底部找到被拦截的提示，点「仍要打开」。
+3. **命令行**去掉隔离标记：
+   ```bash
+   xattr -dr com.apple.quarantine /Applications/BatteryScope.app
+   ```
+
+> 开发机上 `spctl -a -t exec` 有时会显示 `accepted`——那说明该机器的 Gatekeeper 被关闭了（`override=security disabled`），**不代表普通用户会遇到的情况**。
+
+### 要做到双击即用
+
+需要：Apple Developer Program 会员 → 申请 **Developer ID Application** 证书 → 用 `--options runtime` 重新签名 → `xcrun notarytool submit --wait` 提交公证 → `xcrun stapler staple` 装订票据。完成这几步后，任何人下载都能直接打开。
+
 ## 项目结构
 
 ```
