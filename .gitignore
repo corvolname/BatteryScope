@@ -1,0 +1,16 @@
+# 构建产物
+.build/
+dist/
+*.dmg
+
+# Xcode / SwiftPM 用户数据
+.swiftpm/
+Package.resolved
+
+# macOS
+.DS_Store
+._*
+
+# 编辑器
+.vscode/
+*.xcuserstate
