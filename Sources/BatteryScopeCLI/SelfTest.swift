@@ -337,6 +337,22 @@ enum SelfTest {
         expect(zip(reduced, reduced.dropFirst()).allSatisfy { $0.date <= $1.date },
                "归档降采样：时间顺序保持")
 
+        // CPU 温度的选择顺序：封装热点（TCMz）优先，核心最大值回退。
+        let sensors: [(key: String, value: Double)] = [("Tp02", 59.72), ("Te02", 63.09), ("Tp06", 58.92)]
+        let withHotspot = SMCThermalReader.pickCPUTemperature(hotspot: 63.40, sensors: sensors)
+        expectEqual(withHotspot?.celsius, 63.40, "CPU 温度：有 TCMz 时取热点")
+        expectEqual(withHotspot?.source, "TCMz", "CPU 温度：来源标记为 TCMz")
+        let noHotspot = SMCThermalReader.pickCPUTemperature(hotspot: nil, sensors: sensors)
+        expectEqual(noHotspot?.celsius, 63.09, "CPU 温度：无 TCMz 时回退到最热核心")
+        expectEqual(noHotspot?.source, "Te02", "CPU 温度：回退时记录实际键名")
+        // 读不到 / 越界的 TCMz 不得胜出——否则一个坏读数会顶掉正确的核心值
+        expectEqual(SMCThermalReader.pickCPUTemperature(hotspot: 0, sensors: sensors)?.source, "Te02",
+                    "CPU 温度：TCMz 为 0 时回退")
+        expectEqual(SMCThermalReader.pickCPUTemperature(hotspot: 999, sensors: sensors)?.source, "Te02",
+                    "CPU 温度：TCMz 越界时回退")
+        expect(SMCThermalReader.pickCPUTemperature(hotspot: nil, sensors: []) == nil,
+               "CPU 温度：两者都缺时返回 nil，不编造数值")
+
         // 窗口的行不带注解；文本报告保留。
         let reportRows = report.flatMap(\.rows)
         let windowRows = detail.flatMap(\.rows)
@@ -1299,8 +1315,10 @@ enum SelfTest {
         // 两个读数必须来自不同的键，否则说明分组没生效
         expect(first.cpuChannel != first.gpuChannel, "温度：CPU 与 GPU 取自不同传感器")
         if let channel = first.cpuChannel {
-            expect(channel.hasPrefix("Tp") || channel.hasPrefix("Te"),
-                   "温度：CPU 取自 Tp/Te 组（\(channel)）")
+            // 热点优先，核心最大值回退——两者都合法，但不能是别的组。
+            expect(channel == SMCThermalReader.hotspotKey
+                    || channel.hasPrefix("Tp") || channel.hasPrefix("Te"),
+                   "温度：CPU 取自 TCMz 或 Tp/Te 组（\(channel)）")
         }
         if let channel = first.gpuChannel {
             expect(channel.hasPrefix("Tg"), "温度：GPU 取自 Tg 组（\(channel)）")

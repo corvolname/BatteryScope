@@ -267,6 +267,16 @@ case "smc":
     }
     print("\n可用功率键：\(reader.availableKeys.joined(separator: " "))")
 
+    // 温度及其来源。来源键名是诊断信息里最有用的一项：它直接回答"这个数是哪个传感器"，
+    // 例如 TCMz 是封装热点，Tp*/Te* 是各核心。
+    if let thermal = SMCThermalReader()?.read() {
+        func t(_ v: Double?) -> String { v.map { String(format: "%.2f", $0) } ?? "—" }
+        print("")
+        print("温度（\(thermal.cpuKeyCount) 个 CPU 键 / \(thermal.gpuKeyCount) 个 GPU 键）：")
+        print("  CPU \(t(thermal.cpuCelsius)) °C   来源 \(thermal.cpuChannel ?? "—")")
+        print("  GPU \(t(thermal.gpuCelsius)) °C   来源 \(thermal.gpuChannel ?? "—")")
+    }
+
     let samples = Int(flagValue("--samples") ?? "12") ?? 12
     let interval = Double(flagValue("--interval") ?? "0.5") ?? 0.5
     var history: [String: [Double]] = [:]
